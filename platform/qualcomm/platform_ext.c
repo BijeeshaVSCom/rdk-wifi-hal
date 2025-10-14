@@ -330,55 +330,9 @@ int platform_post_init(wifi_vap_info_map_t *vap_map)
     return 0;
 }
 
-void getprivatevap2G(unsigned int *index)
+void qca_getRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam,
+    char *cmd)
 {
-    unsigned int idx = 0;
-    wifi_interface_name_idex_map_t interface_map[(MAX_NUM_RADIOS * MAX_NUM_VAP_PER_RADIO)];
-    if (index == NULL) {
-        wifi_hal_error_print("%s: NULL param error\n", __FUNCTION__);
-        return;
-    }
-
-    get_wifi_interface_info_map(interface_map);
-
-    for (idx = 0; idx < ARRAY_SZ(interface_map); idx++) {
-
-        if (strncmp(interface_map[idx].vap_name, "private_ssid_2g", strlen("private_ssid_2g")) == 0) {
-            *index = interface_map[idx].index;
-
-        }
-    }
-}
-
-void getprivatevap5G(unsigned int *index)
-{
-    unsigned int idx = 0;
-    wifi_interface_name_idex_map_t interface_map[(MAX_NUM_RADIOS * MAX_NUM_VAP_PER_RADIO)];
-    if (index == NULL) {
-        wifi_hal_error_print("%s: NULL param error\n", __FUNCTION__);
-        return;
-    }
-
-    get_wifi_interface_info_map(interface_map);
-
-    for (idx = 0; idx < ARRAY_SZ(interface_map); idx++) {
-
-        if (strncmp(interface_map[idx].vap_name, "private_ssid_5g", strlen("private_ssid_5g")) == 0) {
-            *index = interface_map[idx].index;
-        }
-    }
-}
-
-void qca_setRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
-{
-    unsigned int apindex = 0, i = 0; int band = -1;
-    size_t len = 0;
-    char cmd[DEFAULT_CMD_SIZE] = {0};
-    char tmp[DEFAULT_CMD_SIZE] = {0};
-    char command[DEFAULT_CMD_SIZE] = {0};
-    char buffer[DEFAULT_CMD_SIZE] = {0};
-    char output[DEFAULT_CMD_SIZE]={0};
-
     wifi_ieee80211Variant_t variant = WIFI_80211_VARIANT_AX;
     wifi_channelBandwidth_t channelWidth = WIFI_CHANNELBANDWIDTH_80MHZ;
 
@@ -387,7 +341,6 @@ void qca_setRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *ope
     switch (operationParam->band) {
 
         case WIFI_FREQUENCY_2_4_BAND:
-            getprivatevap2G(&apindex);
             if (variant == WIFI_80211_VARIANT_B) {
                 strncpy(cmd, phymode_strings[QCA_HAL_IEEE80211_PHYMODE_11B], DEFAULT_CMD_SIZE);
 
@@ -427,7 +380,6 @@ void qca_setRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *ope
         case WIFI_FREQUENCY_5_BAND:
         case WIFI_FREQUENCY_5L_BAND:
         case WIFI_FREQUENCY_5H_BAND:
-            getprivatevap5G(&apindex);
             if ((variant & WIFI_80211_VARIANT_A) && !(variant & ~WIFI_80211_VARIANT_A)) {
                 strncpy(cmd, phymode_strings[QCA_HAL_IEEE80211_PHYMODE_11A], DEFAULT_CMD_SIZE);
             }
@@ -492,31 +444,12 @@ void qca_setRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *ope
         default:
             break;
     }
-    snprintf(command, DEFAULT_CMD_SIZE, "cfg80211tool %s get_mode | cut -d':' -f2",getInterface(apindex));
-    FILE *fp = popen(command, "r");
-    if (fp == NULL) {
-        wifi_hal_error_print("%s:%d Failed to run command \n",__func__,__LINE__);
-        return;
-    }
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        strncpy(output, buffer, DEFAULT_CMD_SIZE);
-        output[strcspn(output, "\n")] = '\0';
-    }
-    pclose(fp);
-
-    len = strlen(output) > strlen(cmd) ? strlen(output) : strlen(cmd);
-    if (strncmp(output, cmd, len) != 0 ) {
-        snprintf(tmp, DEFAULT_CMD_SIZE, "cfg80211tool %s mode %s",getInterface(apindex),cmd);
-        system(tmp);
-    }
-
     return;
 }
 
 int platform_set_radio(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
 {
     wifi_hal_dbg_print("%s:%d \n",__func__,__LINE__);
-    qca_setRadioMode(index, operationParam);
     return 0;
 }
 
@@ -526,6 +459,8 @@ int platform_create_vap(wifi_radio_index_t index, wifi_vap_info_map_t *map)
     int vap_itr;
     char interface_name[32];
     char cmd[DEFAULT_CMD_SIZE];
+    char mode[16];
+    wifi_radio_info_t *radio;
 
     for (vap_itr=0; vap_itr < map->num_vaps; vap_itr++) {
         vap = &map->vap_array[vap_itr];
@@ -537,6 +472,14 @@ int platform_create_vap(wifi_radio_index_t index, wifi_vap_info_map_t *map)
             system(cmd);
             snprintf(cmd, sizeof(cmd), "cfg80211tool %s athnewind 1", interface_name);
             system(cmd);
+        } else {
+            radio = get_radio_by_rdk_index(index);
+            if (radio) {
+                qca_getRadioMode(index, &radio->oper_param, mode);
+                snprintf(cmd, sizeof(cmd), "cfg80211tool %s mode %s", interface_name, mode);
+                system(cmd);
+                wifi_hal_dbg_print("%s:%d Executing %s\n", __func__, __LINE__, cmd);
+            }
         }
     }
     wifi_hal_dbg_print("%s:%d \n",__func__,__LINE__);
