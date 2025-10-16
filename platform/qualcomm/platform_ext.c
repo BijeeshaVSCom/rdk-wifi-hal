@@ -449,6 +449,7 @@ void qca_getRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *ope
 
 int platform_set_radio(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
 {
+    qca_setRadioMode(index, operationParam);
     wifi_hal_dbg_print("%s:%d \n",__func__,__LINE__);
     return 0;
 }
@@ -794,7 +795,9 @@ int platform_pre_create_vap(wifi_radio_index_t index, wifi_vap_info_map_t *map)
         get_interface_name_from_vap_index(vap->vap_index, interface_name);
         snprintf(param, sizeof(param), "ath%d.vap_enabled", vap->vap_index);
     }
+#ifdef CONFIG_MLO
     qca_create_mld_interfaces(map);
+#endif
     wifi_hal_dbg_print("%s:%d \n",__func__,__LINE__);    
     return 0;
 }
@@ -1025,8 +1028,6 @@ int nl80211_drv_mlo_msg(struct nl_msg *msg, struct nl_msg **msg_mlo, void *priv,
     }
     wifi_hal_dbg_print("%s:%d: EXIT\n", __func__, __LINE__);
     return res;
-#else
-#error "The wifi_drv_set_ap_mlo is not implemented"
 #endif /* CONFIG_MLO */
 }
 
@@ -1092,8 +1093,6 @@ int update_hostap_mlo(wifi_interface_info_t *interface) {
     wifi_hal_dbg_print("%s:%d: EXIT\n", __func__, __LINE__);
 
     return RETURN_OK;
-#else
-#error "The update_hostap_mlo is not implemented"
 #endif /* CONFIG_MLO */
 }
 

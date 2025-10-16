@@ -8025,10 +8025,12 @@ int nl80211_create_interface(wifi_radio_info_t *radio, wifi_vap_info_t *vap, wif
     }
 
 #if defined(VNTXER5_PORT) || defined(TARGET_GEMINI7_2)
-    if (!is_wifi_hal_vap_mesh(vap->vap_index) && platform_create_interface_attributes(&msg, radio, vap) != RETURN_OK) {
+#ifdef CONFIG_MLO
+    if ( platform_create_interface_attributes(&msg, radio, vap) != RETURN_OK) {
         nlmsg_free(msg);
         return -1;
     }
+#endif
 #endif
 
     if ((ret = nl80211_send_and_recv(msg, interface_info_handler, radio, NULL, NULL))) {
@@ -14869,15 +14871,13 @@ int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
     }
 #endif
 
-#ifdef CONFIG_IEEE80211BE
-    if (!is_wifi_hal_vap_mesh(vap->vap_index)){
+#if defined(CONFIG_IEEE80211BE) && defined(CONFIG_MLO)
     ret = nl80211_drv_mlo_msg(msg, &msg_mlo, interface, params);
     if (ret < 0) {
         wifi_hal_error_print("%s:%d: Failed to create mlo msg on interface %s, error: %d\n",
             __func__, __LINE__, interface->name, ret);
         return -1;
     }
-}
 #endif /* CONFIG_IEEE80211BE */
 
     get_coutry_str_from_code(radio_param->countryCode, country);
@@ -14939,15 +14939,13 @@ int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
         set_bss_param(priv, params);
     }
 
-#ifdef CONFIG_IEEE80211BE
-    if (!is_wifi_hal_vap_mesh(vap->vap_index)){
+#if defined(CONFIG_IEEE80211BE) && defined(CONFIG_MLO)
     ret = nl80211_send_mlo_msg(msg_mlo);
     if (ret < 0) {
         wifi_hal_error_print("%s:%d: Failed to send mlo msg on interface %s, error: %d\n", __func__,
             __LINE__, interface->name, ret);
         return -1;
     }
-}
 #endif /* CONFIG_IEEE80211BE */
 
     return 0;

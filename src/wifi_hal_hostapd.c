@@ -2232,8 +2232,8 @@ int update_hostap_interface_params(wifi_interface_info_t *interface)
 #endif
         goto exit;
     }
-#ifdef CONFIG_IEEE80211BE
-    if (!is_wifi_hal_vap_mesh_backhaul(interface->vap_info.vap_index) && update_hostap_mlo(interface) != RETURN_OK) {
+#if defined(CONFIG_IEEE80211BE) && defined(CONFIG_MLO)
+    if (update_hostap_mlo(interface) != RETURN_OK) {
         goto exit;
     }
 #endif /* CONFIG_IEEE80211BE */
