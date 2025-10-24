@@ -449,7 +449,6 @@ void qca_getRadioMode(wifi_radio_index_t index, wifi_radio_operationParam_t *ope
 
 int platform_set_radio(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
 {
-    qca_setRadioMode(index, operationParam);
     wifi_hal_dbg_print("%s:%d \n",__func__,__LINE__);
     return 0;
 }
@@ -1265,7 +1264,7 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
         }
         interface = hash_map_get_next(radio->interface_map, interface);
     }
-
+#if defined(CONFIG_MLO)
     for(i=0; i < MAX_INTERFACE_IDX; i++)
     {
         if(!(existing_vap_indices & 1<<i))
@@ -1303,6 +1302,7 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
             return 0;
         }
     }
+#endif
     wifi_hal_dbg_print("%s:%d Exit\n",__func__,__LINE__);
     return 0;
 }
